@@ -1,157 +1,88 @@
 #include "ofApp.h"
 
 string KISS_VID_FOLDER = "kiss_vids/";
-int FPS = 15;
+string KISS_FRAME_SEQUENCE_FOLDER = "frameSequences/";
+string KISS_FRAME_SEQUENCE_FOLDER_DEV = "frameSequences_dev";
+
+bool IS_DEV = true;
+
+int FPS_START = 15;
 int MAX_FRAMES = 22;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-    ofSetFrameRate(FPS);
+    currFPS = FPS_START;
+    ofSetFrameRate(currFPS);
     
-    ofDirectory dir(KISS_VID_FOLDER);
-    dir.allowExt("mp4");
-
+    string frameSequenceFolder = IS_DEV ? KISS_FRAME_SEQUENCE_FOLDER_DEV :KISS_FRAME_SEQUENCE_FOLDER;
+    
+    ofDirectory dir(frameSequenceFolder);
     dir.listDir();
-
-    //go through and print out all the paths
-    for(int i = 0; i < dir.size(); i++){
-        string vidPath = dir.getPath(i);
-        
-        ofVideoPlayer vidPlayer;
-        vidPlayer.load(vidPath);
-        vidPlayer.setSpeed(-1);
-//        vidPlayer.setLoopState(OF_LOOP_PALINDROME);
-//        vidPlayer.play();
-        videos.push_back(vidPlayer);
-        
-
-        ofLog(OF_LOG_NOTICE) << "Loaded: " << vidPath << "; frameCount: " << ofToString(vidPlayer.getTotalNumFrames());
-    }
-//
-    int randomVideoIndex = (int) ofRandom(videos.size());
-    currVideo = videos[randomVideoIndex];
-    currVideo.play();
     
-    expectedFrame = -1;
-    hasHandledSwitch = true;
+    for(int i = 0; i < dir.size(); i++){
+        string imageFolder = dir.getPath(i);
+        FrameSequence seq(imageFolder);
+        sequences.push_back(seq);
+    }
+    
+    currSequence = sequences[0];
+    changeSequenceProbability = 0;
+    jumpCutProbability = 0;
 }
 
 //--------------------------------------------------------------
-void ofApp::update(){
-    if (ofRandom(1.0) > 0.95) {
-        switchVideo();
+void ofApp::update() {
+    if (ofRandom(1.0) < changeSequenceProbability) {
+        switchSequence();
     }
     
-    
-    if (isPlayingBackward && currVideo.getCurrentFrame() <= 0) {
-        currVideo.setSpeed(1);
-        isPlayingBackward = false;
+    if (ofRandom(1.0) < jumpCutProbability) {
+        jumpCut();
     }
-    if (!isPlayingBackward && currVideo.getCurrentFrame() >= currVideo.getTotalNumFrames() - 1) {
-        currVideo.setSpeed(-1);
-        isPlayingBackward = true;
-    }
-    if (isPlayingBackward && nextVideo.getCurrentFrame() <= 0) {
-        nextVideo.setSpeed(1);
-        isPlayingBackward = false;
-    }
-    if (!isPlayingBackward && nextVideo.getCurrentFrame() >= nextVideo.getTotalNumFrames() - 1) {
-        nextVideo.setSpeed(-1);
-        isPlayingBackward = true;
-    }
-    
-
-
-    currVideo.update();
-    nextVideo.update();
-    
-    if (!hasHandledSwitch && abs(currVideo.getCurrentFrame() - nextVideo.getCurrentFrame()) < 4) {
-        currVideo.stop();
-        currVideo = nextVideo;
-        
-        hasHandledSwitch = true;
-    }
-    
 }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-    currVideo.draw(0, 0, ofGetWidth(), ofGetHeight());
-    ofLogNotice() << "Curr frame: " << ofToString(currVideo.getCurrentFrame());
-    ofLogNotice() << "Next frame: " << ofToString(nextVideo.getCurrentFrame());
-
+    currSequence.nextFrame();
+    ofImage img = currSequence.getCurrImage();
+    
+    img.draw(0, 0, ofGetWidth(), ofGetHeight());
 }
 
-void ofApp::switchVideo() {
-    int randomVideoIndex = (int) ofRandom(videos.size());
-    nextVideo = videos[randomVideoIndex];
+void ofApp::switchSequence() {
+    int randomSequenceIndex = (int) ofRandom(sequences.size());
+    FrameSequence nextSequence = sequences[randomSequenceIndex];
     
-    int currFrame = currVideo.getCurrentFrame();
-    float progress = (float)currFrame / (float)currVideo.getTotalNumFrames();
-    ofLogNotice() << "CURR VIDEO frame on switch: " << ofToString(currFrame);
-
-//
-//    currVideo.stop();
-//    currVideo = nextVideo;
+    float currProgress = currSequence.getProgress();
+    bool currIsPlayingBackward = currSequence.getIsPlayingBackward();
     
-    nextVideo.play();
-    nextVideo.setPaused(true);
-    nextVideo.setFrame(currFrame);
+    ofLogNotice()  << "switchSequence: " << currProgress;
     
-    hasHandledSwitch = false;
-    expectedFrame = currFrame;
-   
-    
-    
-    if (isPlayingBackward) {
-        nextVideo.setSpeed(-1);
-//        currVideo.previousFrame();
-    } else {
-        nextVideo.setSpeed(1);
-//        currVideo.nextFrame();
-    }
-    
-//    currVideo.play();
-    nextVideo.update();
-//    currVideo.update();
-//    currVideo.setFrame(currFrame);
+    nextSequence.setProgress(currProgress, currIsPlayingBackward);
+    currSequence = nextSequence;
 }
 
-void ofApp::skipFrames(int setFrames) {
-    unsigned int currentFrame = currVideo.getCurrentFrame();
-    int frames = setFrames - currentFrame;
-
-    if(frames > 0) {
-        for(unsigned int i = currentFrame; i < currentFrame + frames; i++) {
-            currVideo.setPaused(false);
-            currVideo.nextFrame();
-            currVideo.update();
-            currVideo.setPaused(true);
-        }
-    } else if(frames < 0) {
-        for(unsigned int i = currentFrame; i > currentFrame + frames; i--) {
-            currVideo.setPaused(false);
-            currVideo.previousFrame();
-            currVideo.update();
-            currVideo.setPaused(true);
-        }
-    }
-    
-    currVideo.play();
+void ofApp::jumpCut() {
+    float nextProgress = ofRandom(0, 0.9);
+    bool isPlayingBackward = ofRandom(1.0) > 0.5;
+    currSequence.setProgress(nextProgress, isPlayingBackward);
 }
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
     if (key ==  ' ') {
-        switchVideo();
+        switchSequence();
     }
     
     if (key == OF_KEY_LEFT) {
-        currVideo.setPaused(true);
-        currVideo.setFrame(10);
-        currVideo.play();
-        ofLogNotice() << "New curr frame: " << ofToString(currVideo.getCurrentFrame());
-        
+        currFPS--;
+        ofSetFrameRate(currFPS);
+
+    }
+    
+    if (key == OF_KEY_RIGHT) {
+        currFPS++;
+        ofSetFrameRate(currFPS);
     }
 }
 
@@ -162,7 +93,8 @@ void ofApp::keyReleased(int key){
 
 //--------------------------------------------------------------
 void ofApp::mouseMoved(int x, int y ){
-
+    changeSequenceProbability = ofMap(x, 0, ofGetWidth(), 0, 1);
+    jumpCutProbability = ofMap(y, 0, ofGetHeight(), 0, 1);
 }
 
 //--------------------------------------------------------------

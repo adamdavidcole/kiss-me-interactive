@@ -12,9 +12,25 @@
 #include "ofMain.h"
 
 class FrameSequence {
+public:
+    FrameSequence();
     FrameSequence(string imgFolder);
     
+    void nextFrame();
+    ofImage getCurrImage();
+    int getCurrFrame();
+    float getProgress();
+    bool getIsPlayingBackward();
+    
+    void setProgress(float progress, bool _isPlayingBackward);
+    
+private:
     vector<ofImage> sequence;
+    int currFrame;
+    bool isPlayingBackward;
+    
+    void checkBoundary();
+    
 };
 
 #endif /* FrameSequence_hpp */

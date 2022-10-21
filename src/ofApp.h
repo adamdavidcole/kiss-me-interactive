@@ -20,16 +20,16 @@ class ofApp : public ofBaseApp{
 		void mouseExited(int x, int y);
 		void windowResized(int w, int h);
 		void dragEvent(ofDragInfo dragInfo);
-		void gotMessage(ofMessage msg);
-    
-    
-        vector<ofVideoPlayer> videos;
-        ofVideoPlayer currVideo;
-        ofVideoPlayer nextVideo;
-        bool isPlayingBackward = true;
-    
-        void switchVideo();
-        void skipFrames(int frames);
-        int expectedFrame;
-        bool hasHandledSwitch;
+		void gotMessage(ofMessage msg);    
+        
+        FrameSequence currSequence;
+        vector<FrameSequence> sequences;
+        void switchSequence();
+        void jumpCut();
+        void switchDirection();
+        
+        int currFPS;
+        
+        float changeSequenceProbability;
+        float jumpCutProbability;
 };

@@ -5,6 +5,7 @@ string KISS_FRAME_SEQUENCE_FOLDER = "frameSequences/";
 string KISS_FRAME_SEQUENCE_FOLDER_DEV = "frameSequences_dev";
 
 bool IS_DEV = true;
+bool USE_SERIAL_INPUT = true;
 
 int FPS_START = 15;
 int MAX_FRAMES = 22;
@@ -28,6 +29,26 @@ void ofApp::setup(){
     currSequence = sequences[0];
     changeSequenceProbability = 0;
     jumpCutProbability = 0;
+    
+    updateDrawCoords();
+    
+    
+    if (USE_SERIAL_INPUT) {
+        serial.listDevices();
+        vector <ofSerialDeviceInfo> deviceList = serial.getDeviceList();
+        for (ofSerialDeviceInfo device : deviceList) {
+            ofLogNotice() << device.getDeviceName() << ", " << device.getDeviceID();
+        }
+        
+        // this should be set to whatever com port your serial device is connected to.
+        // (ie, COM4 on a pc, /dev/tty.... on linux, /dev/tty... on a mac)
+        // arduino users check in arduino app....
+        int baud = 9600;
+        //    serial.setup("/dev/cu.usbmodem.1201 (Arduino Uno)", baud); //open the first device
+        //serial.setup("COM4", baud); // windows example
+        serial.setup("tty.usbmodem1201", baud); // mac osx example
+        //serial.setup("/dev/ttyUSB0", baud); //linux example
+    }
 }
 
 //--------------------------------------------------------------
@@ -39,6 +60,10 @@ void ofApp::update() {
     if (ofRandom(1.0) < jumpCutProbability) {
         jumpCut();
     }
+    
+    if (USE_SERIAL_INPUT) {
+        readSensorValue();
+    }
 }
 
 //--------------------------------------------------------------
@@ -46,7 +71,7 @@ void ofApp::draw(){
     currSequence.nextFrame();
     ofImage img = currSequence.getCurrImage();
     
-    img.draw(0, 0, ofGetWidth(), ofGetHeight());
+    img.draw(drawX, drawY, drawWidth, drawHeight);
 }
 
 void ofApp::switchSequence() {
@@ -93,8 +118,33 @@ void ofApp::keyReleased(int key){
 
 //--------------------------------------------------------------
 void ofApp::mouseMoved(int x, int y ){
-    changeSequenceProbability = ofMap(x, 0, ofGetWidth(), 0, 1);
-    jumpCutProbability = ofMap(y, 0, ofGetHeight(), 0, 1);
+    if (!USE_SERIAL_INPUT) {
+        changeSequenceProbability = ofMap(x, 0, ofGetWidth(), 0, 1);
+        jumpCutProbability = ofMap(y, 0, ofGetHeight(), 0, 1);
+    }
+}
+
+void ofApp::readSensorValue() {
+    if (!USE_SERIAL_INPUT) return;
+    
+    if (serial.available() < 0) {
+       sensorValue = "Arduino Error";
+    } else {
+       //While statement looping through serial messages when serial is being provided.
+       while (serial.available() > 0) {
+           //byte data is being writen into byteData as int.
+           byteData = serial.readByte();
+       
+           //byteData is converted into a string for drawing later.
+           sensorValue = "value: " + ofToString(byteData);
+       }
+        
+        float sesnorValueMapped = ofMap(byteData, 0, 255, 0, 0.25);
+        changeSequenceProbability = sesnorValueMapped;
+        jumpCutProbability = sesnorValueMapped;
+   }
+   cout << sensorValue << endl; // output the sensorValue
+    
 }
 
 //--------------------------------------------------------------
@@ -123,8 +173,20 @@ void ofApp::mouseExited(int x, int y){
 }
 
 //--------------------------------------------------------------
-void ofApp::windowResized(int w, int h){
 
+void ofApp::updateDrawCoords() {
+    int currWidth = ofGetWidth();
+    int currHeight = ofGetHeight();
+    int size = std::min(currWidth, currHeight);
+    
+    drawWidth = size;
+    drawHeight = size;
+    drawX = (currWidth / 2) - (size / 2);
+    drawY = (currHeight / 2) - (size / 2);
+}
+
+void ofApp::windowResized(int w, int h){
+    updateDrawCoords();
 }
 
 //--------------------------------------------------------------
@@ -136,3 +198,4 @@ void ofApp::gotMessage(ofMessage msg){
 void ofApp::dragEvent(ofDragInfo dragInfo){ 
 
 }
+

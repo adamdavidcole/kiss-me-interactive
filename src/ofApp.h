@@ -32,4 +32,16 @@ class ofApp : public ofBaseApp{
         
         float changeSequenceProbability;
         float jumpCutProbability;
+    
+        int drawX;
+        int drawY;
+        int drawWidth;
+        int drawHeight;
+        void updateDrawCoords();
+    
+        ofSerial serial;
+        string sensorValue;
+        int byteData;
+        void readSensorValue();
+    
 };

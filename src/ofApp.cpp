@@ -3,8 +3,9 @@
 string KISS_VID_FOLDER = "kiss_vids/";
 string KISS_FRAME_SEQUENCE_FOLDER = "frameSequences/";
 string KISS_FRAME_SEQUENCE_FOLDER_DEV = "frameSequences_dev";
+vector<string> intensityFolders = {"low", "medium", "high" };
 
-bool IS_DEV = true;
+bool IS_DEV = false;
 bool USE_SERIAL_INPUT = true;
 
 int FPS_START = 15;
@@ -16,22 +17,41 @@ void ofApp::setup(){
     ofSetFrameRate(currFPS);
     
     string frameSequenceFolder = IS_DEV ? KISS_FRAME_SEQUENCE_FOLDER_DEV :KISS_FRAME_SEQUENCE_FOLDER;
-    
-    ofDirectory dir(frameSequenceFolder);
-    dir.listDir();
-    
-    for(int i = 0; i < dir.size(); i++){
-        string imageFolder = dir.getPath(i);
-        FrameSequence seq(imageFolder);
-        sequences.push_back(seq);
+        
+    for (int j = 0; j < intensityFolders.size(); j++) {
+        vector<FrameSequence> sequenceBucket;
+        string directory = frameSequenceFolder + "/" + intensityFolders[j];
+        ofLogNotice() << directory;
+        ofDirectory dir(directory);
+        dir.listDir();
+        
+        // Create bucket from all sequences in directory
+        for(int i = 0; i < dir.size(); i++) {
+            string imageFolder = dir.getPath(i);
+            ofLogNotice() << "imageFolder" << imageFolder;
+            FrameSequence seq(imageFolder);
+            sequenceBucket.push_back(seq);
+        }
+        
+        // Add sequences from previous bucket to this bucket
+        if (j > 0) {
+            vector<FrameSequence> prevBucket = sequenceBuckets[j-1];
+            for (FrameSequence seq : prevBucket) {
+                sequenceBucket.push_back(seq);
+            }
+        }
+        
+        sequenceBuckets.push_back(sequenceBucket);
+        ofLogNotice() << "Size of new bucket: " << sequenceBucket.size();
     }
     
-    currSequence = sequences[0];
+    currSequence = sequenceBuckets[0][0];
     changeSequenceProbability = 0;
     jumpCutProbability = 0;
-    
+    currSequenceBucket = &sequenceBuckets[2];
+
     updateDrawCoords();
-    
+//
     
     if (USE_SERIAL_INPUT) {
         serial.listDevices();
@@ -56,11 +76,11 @@ void ofApp::update() {
     if (ofRandom(1.0) < changeSequenceProbability) {
         switchSequence();
     }
-    
+
     if (ofRandom(1.0) < jumpCutProbability) {
         jumpCut();
     }
-    
+
     if (USE_SERIAL_INPUT) {
         readSensorValue();
     }
@@ -70,14 +90,15 @@ void ofApp::update() {
 void ofApp::draw(){
     currSequence.nextFrame();
     ofImage img = currSequence.getCurrImage();
-    
+
     img.draw(drawX, drawY, drawWidth, drawHeight);
 }
 
 void ofApp::switchSequence() {
-    int randomSequenceIndex = (int) ofRandom(sequences.size());
-    FrameSequence nextSequence = sequences[randomSequenceIndex];
+    int randomSequenceIndex = (int) ofRandom(currSequenceBucket->size());
+    FrameSequence nextSequence = currSequenceBucket->at(randomSequenceIndex);
     
+
     float currProgress = currSequence.getProgress();
     bool currIsPlayingBackward = currSequence.getIsPlayingBackward();
     
@@ -109,6 +130,12 @@ void ofApp::keyPressed(int key){
         currFPS++;
         ofSetFrameRate(currFPS);
     }
+    
+//    if (!USE_SERIAL_INPUT) {
+        if (key == '1') currSequenceBucket = &sequenceBuckets[0];
+        if (key == '2') currSequenceBucket = &sequenceBuckets[1];
+        if (key == '3') currSequenceBucket = &sequenceBuckets[2];
+//    }
 }
 
 //--------------------------------------------------------------
@@ -142,6 +169,14 @@ void ofApp::readSensorValue() {
         float sesnorValueMapped = ofMap(byteData, 0, 255, 0, 0.25);
         changeSequenceProbability = sesnorValueMapped;
         jumpCutProbability = sesnorValueMapped;
+        
+        if (sesnorValueMapped < 0.05) {
+            currSequenceBucket = &sequenceBuckets[0];
+        } else if (sesnorValueMapped < 0.2)  {
+            currSequenceBucket = &sequenceBuckets[1];
+        } else {
+            currSequenceBucket = &sequenceBuckets[2];
+        }
    }
    cout << sensorValue << endl; // output the sensorValue
     

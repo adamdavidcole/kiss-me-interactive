@@ -24,6 +24,11 @@ class ofApp : public ofBaseApp{
         
         FrameSequence currSequence;
         vector<FrameSequence> sequences;
+        
+        vector<vector<FrameSequence>> sequenceBuckets;
+        vector<FrameSequence>* currSequenceBucket;
+
+        int totalSequences;
         void switchSequence();
         void jumpCut();
         void switchDirection();
@@ -32,6 +37,7 @@ class ofApp : public ofBaseApp{
         
         float changeSequenceProbability;
         float jumpCutProbability;
+        int intensityBucketsToUseCount;
     
         int drawX;
         int drawY;

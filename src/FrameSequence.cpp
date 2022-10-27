@@ -18,7 +18,7 @@ FrameSequence::FrameSequence(string imgFolder) {
         ofImage img;
         img.load(imagePath);
         sequence.push_back(img);
-        ofLogNotice() << imagePath;
+//        ofLogNotice() << imagePath;
     }
     
     currFrame = 0;

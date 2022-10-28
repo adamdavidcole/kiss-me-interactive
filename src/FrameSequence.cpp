@@ -63,7 +63,7 @@ void FrameSequence::setProgress(float progress, bool _isPlayingBackward) {
     
     currFrame = round(progress * (sequence.size() - 1));
     
-    ofLogNotice() << "currFrame" << ofToString(currFrame) << "setProgress" << progress << ofToString(progress) << " _isPlayingBackward: " << ofToString(_isPlayingBackward);
+//    ofLogNotice() << "currFrame" << ofToString(currFrame) << "setProgress" << progress << ofToString(progress) << " _isPlayingBackward: " << ofToString(_isPlayingBackward);
     isPlayingBackward = _isPlayingBackward;
     
     checkBoundary();

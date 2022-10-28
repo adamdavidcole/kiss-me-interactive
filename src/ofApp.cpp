@@ -66,7 +66,7 @@ void ofApp::setup(){
         int baud = 9600;
         //    serial.setup("/dev/cu.usbmodem.1201 (Arduino Uno)", baud); //open the first device
         //serial.setup("COM4", baud); // windows example
-        serial.setup("tty.usbmodem1201", baud); // mac osx example
+        serial.setup("tty.usbmodem11201", baud); // mac osx example
         //serial.setup("/dev/ttyUSB0", baud); //linux example
     }
 }
@@ -102,7 +102,7 @@ void ofApp::switchSequence() {
     float currProgress = currSequence.getProgress();
     bool currIsPlayingBackward = currSequence.getIsPlayingBackward();
     
-    ofLogNotice()  << "switchSequence: " << currProgress;
+//    ofLogNotice()  << "switchSequence: " << currProgress;
     
     nextSequence.setProgress(currProgress, currIsPlayingBackward);
     currSequence = nextSequence;
@@ -163,12 +163,16 @@ void ofApp::readSensorValue() {
            byteData = serial.readByte();
        
            //byteData is converted into a string for drawing later.
-           sensorValue = "value: " + ofToString(byteData);
+//           sensorValue = "value: " + ofToString(byteData);
        }
         
-        float sesnorValueMapped = ofMap(byteData, 0, 255, 0, 0.25);
+        float sesnorValueMapped = ofMap(byteData, 0, 255, .015, 0.21);
+        ofLogNotice() << "Mapped sensor value: " << ofToString(sesnorValueMapped);
+        
         changeSequenceProbability = sesnorValueMapped;
         jumpCutProbability = sesnorValueMapped;
+        
+        vector<FrameSequence>* prevSequenceBucket = currSequenceBucket;
         
         if (sesnorValueMapped < 0.05) {
             currSequenceBucket = &sequenceBuckets[0];
@@ -176,6 +180,10 @@ void ofApp::readSensorValue() {
             currSequenceBucket = &sequenceBuckets[1];
         } else {
             currSequenceBucket = &sequenceBuckets[2];
+        }
+        
+        if (prevSequenceBucket != currSequenceBucket) {
+            switchSequence();
         }
    }
    cout << sensorValue << endl; // output the sensorValue

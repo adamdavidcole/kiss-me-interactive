@@ -30,16 +30,9 @@
 int sensorPin = A0;    // select the input pin for the potentiometer
 int sensorValue = 0;  // variable to store the value coming from the sensor
 
-int trigPin = 11;    // Trigger
-int echoPin = 12;    // Echo
-long duration, cm, inches;
-
 void setup() {
   // declare the ledPin as an OUTPUT:
   Serial.begin(9600);
-
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
 }
 
 void loop() {
@@ -48,34 +41,6 @@ void loop() {
 //  Serial.println(sensorValue);
   Serial.write(sensorValue);
   delay(50);
-
-
-//// DISTANCE SENSOR
-//  digitalWrite(trigPin, LOW);
-//  delayMicroseconds(5);
-//  digitalWrite(trigPin, HIGH);
-//  delayMicroseconds(10);
-//  digitalWrite(trigPin, LOW);
-// 
-//  // Read the signal from the sensor: a HIGH pulse whose
-//  // duration is the time (in microseconds) from the sending
-//  // of the ping to the reception of its echo off of an object.
-//  pinMode(echoPin, INPUT);
-//  duration = pulseIn(echoPin, HIGH);
-// 
-//  // Convert the time into a distance
-//  cm = (duration/2) / 29.1;     // Divide by 29.1 or multiply by 0.0343
-//
-//  sensorValue = 255 - (int)((min(cm, 30.0) / 30.0) * 255);
-//  Serial.write(sensorValue);
-//  delay(50);
-  
-//  Serial.print(inches);
-//  Serial.print("in, ");
-//  Serial.print(cm);
-//  Serial.print("cm");
-//  Serial.println();
-//  delay(250);
 
   
 

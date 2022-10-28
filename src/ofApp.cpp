@@ -6,52 +6,87 @@ string KISS_FRAME_SEQUENCE_FOLDER_DEV = "frameSequences_dev";
 vector<string> intensityFolders = {"low", "medium", "high" };
 
 bool IS_DEV = false;
-bool USE_SERIAL_INPUT = true;
+bool USE_SERIAL_INPUT = false;
 
 int FPS_START = 15;
 int MAX_FRAMES = 22;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
+    std::cout << "App is starting up" << std::endl;
     currFPS = FPS_START;
     ofSetFrameRate(currFPS);
     
     string frameSequenceFolder = IS_DEV ? KISS_FRAME_SEQUENCE_FOLDER_DEV :KISS_FRAME_SEQUENCE_FOLDER;
-        
-    for (int j = 0; j < intensityFolders.size(); j++) {
-        vector<FrameSequence> sequenceBucket;
+    
+    ofLogNotice() << "Using frameSequenceFolder: " << frameSequenceFolder;
+     
+    
+    for (int j = 0; j < 3; j++) {
+        ofLogNotice() << "Begin new frame sequence bucket: " << ofToString(j);
+        vector<FrameSequence*>* sequenceBucket = new vector<FrameSequence*>;
         string directory = frameSequenceFolder + "/" + intensityFolders[j];
+        
+        ofLogNotice() << "Intensity directory: " << directory;
+        
         ofLogNotice() << directory;
         ofDirectory dir(directory);
         dir.listDir();
+        
+        ofLogNotice() << "Size of dir: " << dir.size();
         
         // Create bucket from all sequences in directory
         for(int i = 0; i < dir.size(); i++) {
             string imageFolder = dir.getPath(i);
             ofLogNotice() << "imageFolder" << imageFolder;
-            FrameSequence seq(imageFolder);
-            sequenceBucket.push_back(seq);
+            FrameSequence* seq = new FrameSequence(imageFolder);
+            ofLogNotice() << "Push to bucket";
+            sequenceBucket->push_back(seq);
+            ofLogNotice() << "Done pushing to bucket";
         }
+        
+       
         
         // Add sequences from previous bucket to this bucket
         if (j > 0) {
-            vector<FrameSequence> prevBucket = sequenceBuckets[j-1];
-            for (FrameSequence seq : prevBucket) {
-                sequenceBucket.push_back(seq);
+            vector<FrameSequence*> prevBucket = *sequenceBuckets[j-1];
+            for (FrameSequence* seq : prevBucket) {
+                sequenceBucket->push_back(seq);
             }
         }
         
         sequenceBuckets.push_back(sequenceBucket);
-        ofLogNotice() << "Size of new bucket: " << sequenceBucket.size();
+        ofLogNotice() << "Size of new bucket: " << sequenceBucket->size();
     }
     
-    currSequence = sequenceBuckets[0][0];
+   
+   ofLogNotice() << "Completed loading all frame sequences";
+    
+   ofLogNotice() << "sequenceBucketsSize: " << sequenceBuckets.size();
+    
+    vector<FrameSequence*>* firstBucketPtr = sequenceBuckets[0];
+    
+    ofLogNotice() << "firstBucketPtr set";
+    
+    
+    currSequence = firstBucketPtr->at(0);
+    
+    ofLogNotice() << "currSequence set";
+    
+    currSequenceBucket = firstBucketPtr;
+    
+    ofLogNotice() << "Initialized curr sequence";
+    
+   
     changeSequenceProbability = 0;
     jumpCutProbability = 0;
-    currSequenceBucket = &sequenceBuckets[2];
+    
 
+
+    
     updateDrawCoords();
-//
+
+     
     
     if (USE_SERIAL_INPUT) {
         serial.listDevices();
@@ -66,13 +101,28 @@ void ofApp::setup(){
         int baud = 9600;
         //    serial.setup("/dev/cu.usbmodem.1201 (Arduino Uno)", baud); //open the first device
         //serial.setup("COM4", baud); // windows example
-        serial.setup("tty.usbmodem11201", baud); // mac osx example
-        //serial.setup("/dev/ttyUSB0", baud); //linux example
+        //serial.setup("tty.usbmodem11201", baud); // mac osx example
+        serial.setup("/dev/ttyACM0", baud); //linux example
+    }
+   
+  
+}
+
+void ofApp::exit() {
+    if (sequenceBuckets.size() > 0) {
+        for (vector<FrameSequence*>* bucket : sequenceBuckets) {
+            for (FrameSequence* seq : *bucket) {
+                delete seq;
+            }
+            delete bucket;
+        }
     }
 }
 
 //--------------------------------------------------------------
 void ofApp::update() {
+    ofLogNotice() << "update wtf";
+    
     if (ofRandom(1.0) < changeSequenceProbability) {
         switchSequence();
     }
@@ -84,34 +134,39 @@ void ofApp::update() {
     if (USE_SERIAL_INPUT) {
         readSensorValue();
     }
+    
 }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-    currSequence.nextFrame();
-    ofImage img = currSequence.getCurrImage();
+    ofLogNotice() << "drawz: " << ofToString(drawX) << ", drawY: " << drawY << ", drawWidth: " << drawWidth << ", drawHeight: " << drawHeight;
+    
+    currSequence->nextFrame();
+    ofImage img = currSequence->getCurrImage();
+    
+    ofLogNotice() << "img width: " << img.getWidth();
 
     img.draw(drawX, drawY, drawWidth, drawHeight);
 }
 
 void ofApp::switchSequence() {
     int randomSequenceIndex = (int) ofRandom(currSequenceBucket->size());
-    FrameSequence nextSequence = currSequenceBucket->at(randomSequenceIndex);
+    FrameSequence* nextSequence = currSequenceBucket->at(randomSequenceIndex);
     
 
-    float currProgress = currSequence.getProgress();
-    bool currIsPlayingBackward = currSequence.getIsPlayingBackward();
+    float currProgress = currSequence->getProgress();
+    bool currIsPlayingBackward = currSequence->getIsPlayingBackward();
     
 //    ofLogNotice()  << "switchSequence: " << currProgress;
     
-    nextSequence.setProgress(currProgress, currIsPlayingBackward);
+    nextSequence->setProgress(currProgress, currIsPlayingBackward);
     currSequence = nextSequence;
 }
 
 void ofApp::jumpCut() {
     float nextProgress = ofRandom(0, 0.9);
     bool isPlayingBackward = ofRandom(1.0) > 0.5;
-    currSequence.setProgress(nextProgress, isPlayingBackward);
+    currSequence->setProgress(nextProgress, isPlayingBackward);
 }
 
 //--------------------------------------------------------------
@@ -131,11 +186,13 @@ void ofApp::keyPressed(int key){
         ofSetFrameRate(currFPS);
     }
     
-//    if (!USE_SERIAL_INPUT) {
-        if (key == '1') currSequenceBucket = &sequenceBuckets[0];
-        if (key == '2') currSequenceBucket = &sequenceBuckets[1];
-        if (key == '3') currSequenceBucket = &sequenceBuckets[2];
-//    }
+    
+    if (!USE_SERIAL_INPUT) {
+        if (key == '1') currSequenceBucket = sequenceBuckets[0];
+        if (key == '2') currSequenceBucket = sequenceBuckets[1];
+        if (key == '3') currSequenceBucket = sequenceBuckets[2];
+    }
+
 }
 
 //--------------------------------------------------------------
@@ -144,6 +201,8 @@ void ofApp::keyReleased(int key){
 }
 
 //--------------------------------------------------------------
+
+
 void ofApp::mouseMoved(int x, int y ){
     if (!USE_SERIAL_INPUT) {
         changeSequenceProbability = ofMap(x, 0, ofGetWidth(), 0, 1);
@@ -172,14 +231,14 @@ void ofApp::readSensorValue() {
         changeSequenceProbability = sesnorValueMapped;
         jumpCutProbability = sesnorValueMapped;
         
-        vector<FrameSequence>* prevSequenceBucket = currSequenceBucket;
+        vector<FrameSequence*>* prevSequenceBucket = currSequenceBucket;
         
         if (sesnorValueMapped < 0.05) {
-            currSequenceBucket = &sequenceBuckets[0];
+            currSequenceBucket = sequenceBuckets[0];
         } else if (sesnorValueMapped < 0.2)  {
-            currSequenceBucket = &sequenceBuckets[1];
+            currSequenceBucket = sequenceBuckets[1];
         } else {
-            currSequenceBucket = &sequenceBuckets[2];
+            currSequenceBucket = sequenceBuckets[2];
         }
         
         if (prevSequenceBucket != currSequenceBucket) {
@@ -187,8 +246,8 @@ void ofApp::readSensorValue() {
         }
    }
    cout << sensorValue << endl; // output the sensorValue
-    
 }
+
 
 //--------------------------------------------------------------
 void ofApp::mouseDragged(int x, int y, int button){
@@ -238,7 +297,7 @@ void ofApp::gotMessage(ofMessage msg){
 }
 
 //--------------------------------------------------------------
-void ofApp::dragEvent(ofDragInfo dragInfo){ 
+void ofApp::dragEvent(ofDragInfo dragInfo){
 
 }
 
